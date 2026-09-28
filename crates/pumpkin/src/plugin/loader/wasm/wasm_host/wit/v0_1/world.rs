@@ -1272,7 +1272,7 @@ impl pumpkin::plugin::world::HostWorldWithStore<PluginHostState> for HasSelf<Plu
             .store
             .pump_blocking(&mut host, move || world.spawn_entity(spawned_entity))
             .await?;
-        host.get().add_entity(entity)
+        host.get().add(entity)
     }
 
     async fn strike_lightning(
