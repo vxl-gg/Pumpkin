@@ -13,7 +13,6 @@ on:
 
 jobs:
   docker-build-deploy:
-    if: github.repository == 'Pumpkin-MC/Pumpkin'
     permissions:
       contents: read
       packages: write
@@ -86,7 +85,6 @@ jobs:
           retention-days: 1
 
   merge:
-    if: github.repository == 'Pumpkin-MC/Pumpkin'
     permissions:
       contents: read
       packages: write
