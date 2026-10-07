@@ -1342,6 +1342,7 @@ fn register_server_event(
         server_broadcast::ServerBroadcastEvent,
         server_command::ServerCommandEvent,
         server_load::ServerLoadEvent,
+        server_platform_ready::ServerPlatformReadyEvent,
         server_tick_end::ServerTickEndEvent,
         server_tick_start::ServerTickStartEvent,
     };
@@ -1364,6 +1365,9 @@ fn register_server_event(
         }
         EventType::ServerLoadEvent => {
             register_typed_event::<ServerLoadEvent>(resource, handler, priority, blocking);
+        }
+        EventType::ServerPlatformReadyEvent => {
+            register_typed_event::<ServerPlatformReadyEvent>(resource, handler, priority, blocking);
         }
         EventType::ServerTickEndEvent => {
             register_typed_event::<ServerTickEndEvent>(resource, handler, priority, blocking);
@@ -1449,6 +1453,7 @@ impl pumpkin::plugin::context::HostContext for PluginHostState {
             | EventType::ServerListPingEvent
             | EventType::ServerBroadcastEvent
             | EventType::ServerLoadEvent
+            | EventType::ServerPlatformReadyEvent
             | EventType::ServerTickEndEvent
             | EventType::ServerTickStartEvent
             | EventType::MapInitializeEvent) => {

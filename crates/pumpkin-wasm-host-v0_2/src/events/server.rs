@@ -5,7 +5,8 @@ use crate::{
         ClientboundPacket, Event, MapInitializeEventData, PacketReceivedEventData,
         PacketSentEventData, ServerBroadcastEventData, ServerCommandEventData,
         ServerListPingAddress, ServerListPingEventData, ServerLoadEventData, ServerLoadType,
-        ServerTickEndEventData, ServerTickStartEventData, ServerboundPacket,
+        ServerPlatform as WitServerPlatform, ServerPlatformReadyEventData, ServerTickEndEventData,
+        ServerTickStartEventData, ServerboundPacket,
     },
 };
 use pumpkin_core::net::ClientPlatform;
@@ -16,6 +17,7 @@ use pumpkin_core::plugin::server::{
     server_broadcast::ServerBroadcastEvent,
     server_command::ServerCommandEvent,
     server_load::{LoadType, ServerLoadEvent},
+    server_platform_ready::{ServerPlatform, ServerPlatformReadyEvent},
     server_tick_end::ServerTickEndEvent,
     server_tick_start::ServerTickStartEvent,
 };
@@ -236,6 +238,27 @@ impl ToFromWasmEvent for ServerLoadEvent {
                     ServerLoadType::Reload => LoadType::Reload,
                 },
             },
+            _ => panic!("unexpected event type"),
+        }
+    }
+}
+
+impl ToFromWasmEvent for ServerPlatformReadyEvent {
+    fn to_wasm_event(&self, _state: &mut PluginHostState) -> Event {
+        Event::ServerPlatformReadyEvent(ServerPlatformReadyEventData {
+            platform: match self.platform {
+                ServerPlatform::Java => WitServerPlatform::Java,
+                ServerPlatform::Bedrock => WitServerPlatform::Bedrock,
+            },
+        })
+    }
+
+    fn from_wasm_event(event: Event, _state: &mut PluginHostState) -> Self {
+        match event {
+            Event::ServerPlatformReadyEvent(data) => Self::new(match data.platform {
+                WitServerPlatform::Java => ServerPlatform::Java,
+                WitServerPlatform::Bedrock => ServerPlatform::Bedrock,
+            }),
             _ => panic!("unexpected event type"),
         }
     }

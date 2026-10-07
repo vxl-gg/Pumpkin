@@ -332,6 +332,16 @@ interface event {
         load-type: server-load-type
     }
 
+    enum server-platform {
+        java,
+        bedrock,
+    }
+
+    /// Emitted once per listening platform at startup, while connections are processed.
+    record server-platform-ready-event-data {
+        platform: server-platform
+    }
+
     record spawn-change-event-data {
         target-world: %world,
         previous-position: block-pos,
@@ -2158,6 +2168,7 @@ interface event {
         raid-stop-event,
         raid-trigger-event,
         lightning-strike-event,
+        server-platform-ready-event,
     }
 
     variant event {
@@ -2434,5 +2445,6 @@ interface event {
         raid-stop-event(raid-stop-event-data),
         raid-trigger-event(raid-trigger-event-data),
         lightning-strike-event(lightning-strike-event-data),
+        server-platform-ready-event(server-platform-ready-event-data),
     }
 }

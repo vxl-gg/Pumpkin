@@ -10,6 +10,9 @@ pub enum LoadType {
 }
 
 /// An event that fires once the server has finished loading.
+///
+/// Connection processing starts after its handlers return. Use
+/// [`super::ServerPlatformReadyEvent`] to observe platform readiness.
 #[derive(Event, Clone)]
 pub struct ServerLoadEvent {
     /// Why the server load event was emitted.
