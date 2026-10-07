@@ -4,6 +4,9 @@ use super::super::FromIntoEvent;
 
 /// An event that fires once the server has finished loading.
 ///
+/// Connection processing starts after its handlers return. Use
+/// [`super::ServerPlatformReadyEvent`] to observe platform readiness.
+///
 /// The associated [`ServerLoadEventData`] contains the load reason:
 /// startup or a full server reload.
 pub struct ServerLoadEvent;

@@ -1342,6 +1342,7 @@ fn register_server_event(
         server_broadcast::ServerBroadcastEvent,
         server_command::ServerCommandEvent,
         server_load::ServerLoadEvent,
+        server_platform_ready::ServerPlatformReadyEvent,
         server_tick_end::ServerTickEndEvent,
         server_tick_start::ServerTickStartEvent,
     };
@@ -1364,6 +1365,9 @@ fn register_server_event(
         }
         EventType::ServerLoadEvent => {
             register_typed_event::<ServerLoadEvent>(resource, handler, priority, blocking);
+        }
+        EventType::ServerPlatformReadyEvent => {
+            register_typed_event::<ServerPlatformReadyEvent>(resource, handler, priority, blocking);
         }
         EventType::ServerTickEndEvent => {
             register_typed_event::<ServerTickEndEvent>(resource, handler, priority, blocking);
@@ -1414,7 +1418,7 @@ impl pumpkin::plugin::context::Host for PluginHostState {}
 
 impl pumpkin::plugin::context::HostContext for PluginHostState {
     #[allow(clippy::too_many_lines)]
-    async fn register_event(
+    fn register_event(
         &mut self,
         context: Resource<WitContext>,
         handler_id: u32,
@@ -1449,6 +1453,7 @@ impl pumpkin::plugin::context::HostContext for PluginHostState {
             | EventType::ServerListPingEvent
             | EventType::ServerBroadcastEvent
             | EventType::ServerLoadEvent
+            | EventType::ServerPlatformReadyEvent
             | EventType::ServerTickEndEvent
             | EventType::ServerTickStartEvent
             | EventType::MapInitializeEvent) => {
@@ -1666,7 +1671,7 @@ impl pumpkin::plugin::context::HostContext for PluginHostState {
         Ok(())
     }
 
-    async fn register_command(
+    fn register_command(
         &mut self,
         context: Resource<WitContext>,
         command: Resource<Command>,
@@ -1687,7 +1692,7 @@ impl pumpkin::plugin::context::HostContext for PluginHostState {
         Ok(())
     }
 
-    async fn register_permission(
+    fn register_permission(
         &mut self,
         context: Resource<WitContext>,
         permission: Permission,
@@ -1720,21 +1725,15 @@ impl pumpkin::plugin::context::HostContext for PluginHostState {
         Ok(context_res.register_permission(util_permission))
     }
 
-    async fn get_data_folder(
-        &mut self,
-        _context: Resource<WitContext>,
-    ) -> wasmtime::Result<String> {
+    fn get_data_folder(&mut self, _context: Resource<WitContext>) -> wasmtime::Result<String> {
         Ok("data".to_string())
     }
 
-    async fn get_server(
-        &mut self,
-        context: Resource<WitContext>,
-    ) -> wasmtime::Result<Resource<Server>> {
+    fn get_server(&mut self, context: Resource<WitContext>) -> wasmtime::Result<Resource<Server>> {
         self.add(self.get(&context)?.server.clone())
     }
 
-    async fn get_marketplace_metadata(
+    fn get_marketplace_metadata(
         &mut self,
         _context: Resource<WitContext>,
     ) -> wasmtime::Result<Option<MarketplaceMetadata>> {
@@ -1755,7 +1754,7 @@ impl pumpkin::plugin::context::HostContext for PluginHostState {
             }))
     }
 
-    async fn drop(&mut self, rep: Resource<WitContext>) -> wasmtime::Result<()> {
+    fn drop(&mut self, rep: Resource<WitContext>) -> wasmtime::Result<()> {
         self.drop(rep)
     }
 }

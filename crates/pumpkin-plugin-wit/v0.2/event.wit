@@ -248,6 +248,8 @@ interface event {
     record block-burn-event-data {
         igniting-block: string,
         block: string,
+        block-pos: block-pos,
+        target-world: %world,
         cancelled: bool
     }
 
@@ -328,6 +330,16 @@ interface event {
 
     record server-load-event-data {
         load-type: server-load-type
+    }
+
+    enum server-platform {
+        java,
+        bedrock,
+    }
+
+    /// Emitted once per listening platform at startup, while connections are processed.
+    record server-platform-ready-event-data {
+        platform: server-platform
     }
 
     record spawn-change-event-data {
@@ -2156,6 +2168,7 @@ interface event {
         raid-stop-event,
         raid-trigger-event,
         lightning-strike-event,
+        server-platform-ready-event,
     }
 
     variant event {
@@ -2432,5 +2445,6 @@ interface event {
         raid-stop-event(raid-stop-event-data),
         raid-trigger-event(raid-trigger-event-data),
         lightning-strike-event(lightning-strike-event-data),
+        server-platform-ready-event(server-platform-ready-event-data),
     }
 }
