@@ -80,6 +80,7 @@ fn socket_policy_for_permissions(
 pub struct PluginRuntime {
     engine: Engine,
     cache_dir: std::path::PathBuf,
+    #[cfg(feature = "v0_1")]
     linker_v0_1: wasmtime::component::Linker<PluginHostState>,
     #[cfg(feature = "v0_2")]
     linker_v0_2: wasmtime::component::Linker<PluginHostState>,
@@ -115,6 +116,7 @@ impl PluginRuntime {
 
         let engine = Engine::new(&config).map_err(PluginInitError::EngineCreationFailed)?;
 
+        #[cfg(feature = "v0_1")]
         let linker_v0_1 = setup_linker_v0_1(&engine).map_err(PluginInitError::LinkerSetupFailed)?;
         #[cfg(feature = "v0_2")]
         let linker_v0_2 = setup_linker_v0_2(&engine).map_err(PluginInitError::LinkerSetupFailed)?;
@@ -122,6 +124,7 @@ impl PluginRuntime {
         Ok(Self {
             engine,
             cache_dir: path,
+            #[cfg(feature = "v0_1")]
             linker_v0_1,
             #[cfg(feature = "v0_2")]
             linker_v0_2,
@@ -131,6 +134,10 @@ impl PluginRuntime {
         })
     }
 
+    #[expect(
+        clippy::too_many_lines,
+        reason = "Keeps both Wasm API initialization paths together."
+    )]
     pub async fn init_plugin<P: AsRef<Path>>(
         &self,
         path: P,
@@ -159,6 +166,9 @@ impl PluginRuntime {
         let api_version = plugin_api_version(&self.engine, &component)?;
 
         let (plugin_instance, store, metadata) = match api_version {
+            #[cfg(not(feature = "v0_1"))]
+            PluginApiVersion::V0_1 => return Err(PluginInitError::ApiMismatch(v0_1_disabled())),
+            #[cfg(feature = "v0_1")]
             PluginApiVersion::V0_1 => {
                 let instance_pre = self
                     .linker_v0_1
@@ -272,7 +282,7 @@ fn plugin_api_version(
             // For early/unstable release: 0.major.minor
 
             if version.starts_with("0.1.") {
-                return Ok(PluginApiVersion::V0_1);
+                return v0_1_api_version(version);
             } else if version.starts_with("0.2.") {
                 return v0_2_api_version(version);
             }
@@ -284,6 +294,7 @@ fn plugin_api_version(
     Err(PluginInitError::UnknownApiVersion())
 }
 
+#[cfg(feature = "v0_1")]
 fn setup_linker_v0_1(engine: &Engine) -> wasmtime::Result<Linker<PluginHostState>> {
     let mut linker = Linker::<PluginHostState>::new(engine);
     wasmtime_wasi::p2::add_to_linker_async(&mut linker)?;
@@ -292,6 +303,26 @@ fn setup_linker_v0_1(engine: &Engine) -> wasmtime::Result<Linker<PluginHostState
     wasmtime_wasi_http::p3::add_to_linker(&mut linker)?;
     pumpkin_wasm_host_v0_1::add_to_linker(&mut linker)?;
     Ok(linker)
+}
+
+#[cfg(feature = "v0_1")]
+#[allow(clippy::unnecessary_wraps)] // same signature as the build without the feature
+const fn v0_1_api_version(_version: &str) -> Result<PluginApiVersion, PluginInitError> {
+    Ok(PluginApiVersion::V0_1)
+}
+
+#[cfg(not(feature = "v0_1"))]
+fn v0_1_api_version(version: &str) -> Result<PluginApiVersion, PluginInitError> {
+    Err(PluginInitError::UnsupportedApiVersion(format!(
+        "{version} (this server was built without the `plugin-v0_1` feature)"
+    )))
+}
+
+/// The error for the `V0_1` arms when the `v0_1` feature is off. `plugin_api_version` already
+/// rejects v0.1 plugins at load time, so these arms are only a fallback.
+#[cfg(not(feature = "v0_1"))]
+pub fn v0_1_disabled() -> wasmtime::Error {
+    wasmtime::Error::msg("this server was built without the `plugin-v0_1` feature")
 }
 
 #[cfg(feature = "v0_2")]
@@ -474,6 +505,9 @@ pub async fn on_load(
                 });
 
                 match api_version {
+                    #[cfg(not(feature = "v0_1"))]
+                    PluginApiVersion::V0_1 => Err(v0_1_disabled()),
+                    #[cfg(feature = "v0_1")]
                     PluginApiVersion::V0_1 => {
                         let plugin =
                             guest_exports::<pumpkin_wasm_host_v0_1::Plugin>(&plugin_instance)?;
@@ -533,6 +567,9 @@ pub async fn on_unload(
         .shutdown(move |accessor| {
             Box::pin(async move {
                 match api_version {
+                    #[cfg(not(feature = "v0_1"))]
+                    PluginApiVersion::V0_1 => Err(v0_1_disabled()),
+                    #[cfg(feature = "v0_1")]
                     PluginApiVersion::V0_1 => {
                         let plugin =
                             guest_exports::<pumpkin_wasm_host_v0_1::Plugin>(&plugin_instance)?;
@@ -596,6 +633,9 @@ pub async fn handle_ipc_message(
     let sender = sender.to_owned();
     let message = message.to_owned();
     let function = match wasm_plugin.api_version {
+        #[cfg(not(feature = "v0_1"))]
+        PluginApiVersion::V0_1 => return Err(v0_1_disabled()),
+        #[cfg(feature = "v0_1")]
         PluginApiVersion::V0_1 => {
             guest_exports::<pumpkin_wasm_host_v0_1::Plugin>(&wasm_plugin.plugin_instance)?
                 .func_handle_ipc_message()
@@ -763,6 +803,24 @@ mod tests {
         ] {
             assert!(!policy.allows(address, reason));
         }
+    }
+
+    #[cfg(feature = "v0_1")]
+    #[test]
+    fn v0_1_plugins_are_accepted_with_the_feature() {
+        assert!(matches!(
+            super::v0_1_api_version("0.1.0"),
+            Ok(super::PluginApiVersion::V0_1)
+        ));
+    }
+
+    #[cfg(not(feature = "v0_1"))]
+    #[test]
+    fn v0_1_plugins_are_rejected_without_the_feature() {
+        assert!(matches!(
+            super::v0_1_api_version("0.1.0"),
+            Err(super::PluginInitError::UnsupportedApiVersion(version)) if version.contains("plugin-v0_1")
+        ));
     }
 
     #[cfg(feature = "v0_2")]

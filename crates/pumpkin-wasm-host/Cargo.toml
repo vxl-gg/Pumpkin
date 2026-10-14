@@ -10,6 +10,8 @@ license.workspace = true
 doctest = false
 
 [features]
+default = ["v0_1"]
+v0_1 = ["dep:pumpkin-wasm-host-v0_1"]
 # Plugins built against the v0.2 API. Off until the v0.2 ABI is finished; without it a v0.2
 # plugin is rejected at load time and the v0.2 host stays out of the server binary.
 v0_2 = ["dep:pumpkin-wasm-host-v0_2"]
@@ -17,7 +19,7 @@ v0_2 = ["dep:pumpkin-wasm-host-v0_2"]
 [dependencies]
 pumpkin-core.workspace = true
 pumpkin-wasm-host-common.workspace = true
-pumpkin-wasm-host-v0_1.workspace = true
+pumpkin-wasm-host-v0_1 = { workspace = true, optional = true }
 pumpkin-wasm-host-v0_2 = { workspace = true, optional = true }
 pumpkin-plugin-runtime.workspace = true
 tokio = { workspace = true, features = ["macros", "rt-multi-thread", "sync", "time"] }

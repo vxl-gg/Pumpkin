@@ -73,7 +73,7 @@ jobs:
           key: ${{ matrix.asset }}
       - name: Build release
         shell: bash
-        run: cargo build --verbose --release ${{ matrix.target && format('--target {0}', matrix.target) || '' }}
+        run: cargo build --verbose --release -p pumpkin --no-default-features --features plugin-v0_2 ${{ matrix.target && format('--target {0}', matrix.target) || '' }}
       - name: Prepare artifact
         shell: bash
         run: |
@@ -111,7 +111,7 @@ jobs:
       - name: Build release with cargo ndk
         env:
           CARGO_NDK_PLATFORM: 24
-        run: cargo ndk -t arm64-v8a build --release --locked
+        run: cargo ndk -t arm64-v8a build --release --locked -p pumpkin --no-default-features --features plugin-v0_2
       - name: Prepare artifact
         run: |
           mkdir -p dist

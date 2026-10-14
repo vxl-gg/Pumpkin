@@ -7,6 +7,8 @@ use pumpkin_wasm_host_common::{
 };
 
 use crate::runtime::guest_exports;
+#[cfg(not(feature = "v0_1"))]
+use crate::runtime::v0_1_disabled;
 #[cfg(not(feature = "v0_2"))]
 use crate::runtime::v0_2_disabled;
 
@@ -32,6 +34,9 @@ fn run_task(server: &Arc<Server>, task: &ScheduledTask) {
             .call_guest(move |mut guest| {
                 Box::pin(async move {
                     match api_version {
+                        #[cfg(not(feature = "v0_1"))]
+                        PluginApiVersion::V0_1 => Err(v0_1_disabled()),
+                        #[cfg(feature = "v0_1")]
                         PluginApiVersion::V0_1 => {
                             let instance =
                                 guest_exports::<pumpkin_wasm_host_v0_1::Plugin>(&plugin_instance)?;

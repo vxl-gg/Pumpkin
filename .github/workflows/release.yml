@@ -52,7 +52,7 @@ jobs:
       - name: Build Release
         shell: bash
         run: |
-          cargo build --verbose --release
+          cargo build --verbose --release -p pumpkin --no-default-features --features plugin-v0_2
           if [ "${{ runner.os }}" == "Linux" ]; then
             if [ "${{ runner.arch }}" == "X64" ]; then
               TARGET="x86_64-unknown-linux-musl"
@@ -60,7 +60,7 @@ jobs:
               TARGET="aarch64-unknown-linux-musl"
             fi
             rustup target add "$TARGET"
-            cargo build --verbose --release --target "$TARGET"
+            cargo build --verbose --release -p pumpkin --no-default-features --features plugin-v0_2 --target "$TARGET"
           fi
 
       - name: Prepare artifacts
@@ -157,7 +157,7 @@ jobs:
       - name: Build Release with cargo ndk
         env:
           CARGO_NDK_PLATFORM: 24
-        run: cargo ndk -t arm64-v8a build --release --locked
+        run: cargo ndk -t arm64-v8a build --release --locked -p pumpkin --no-default-features --features plugin-v0_2
       - name: Prepare artifacts
         shell: bash
         run: |
