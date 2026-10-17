@@ -362,7 +362,7 @@ fn read_root_vehicle(nbt: &NbtCompound) -> Option<Uuid> {
     ))
 }
 
-pub const DATA_VERSION: i32 = 4903; // 26.2
+pub const DATA_VERSION: i32 = 5023; // 26.3
 
 /// Food exhaustion applied for every block a player mines.
 ///
@@ -1236,7 +1236,7 @@ impl Player {
         let level = &world.level;
 
         // Decrement the value of watched chunks
-        let chunks_to_clean = level.mark_chunks_as_not_watched(radial_chunks).await;
+        let chunks_to_clean = level.mark_chunks_as_not_watched(radial_chunks);
         // Remove chunks with no watchers from the cache
         if !chunks_to_clean.is_empty() {
             world.remove_entities_in_chunks(&chunks_to_clean).await;
@@ -3996,7 +3996,7 @@ impl Player {
     pub async fn unload_watched_chunks(&self, world: &World) {
         let radial_chunks = self.watched_section.load().all_chunks_within();
         let level = &world.level;
-        let chunks_to_clean = level.mark_chunks_as_not_watched(radial_chunks).await;
+        let chunks_to_clean = level.mark_chunks_as_not_watched(radial_chunks);
         if !chunks_to_clean.is_empty() {
             world.remove_entities_in_chunks(&chunks_to_clean).await;
             level.clean_entity_chunks(&chunks_to_clean);
@@ -4088,7 +4088,7 @@ impl Player {
                                 self.gamemode.load() as u8,
                                 self.previous_gamemode.load().unwrap_or(self.gamemode.load()) as i8,
                                 false,
-                                false,
+                                new_world.is_flat(),
                                 Some((death_dimension, death_location)),
                                 VarInt(self.get_entity().portal_cooldown.load(Ordering::Relaxed) as i32),
                                 new_world.sea_level.into(),
