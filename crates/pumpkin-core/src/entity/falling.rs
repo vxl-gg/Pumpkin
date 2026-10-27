@@ -28,7 +28,8 @@ pub struct FallingEntity {
 }
 
 impl FallingEntity {
-    pub const fn new(entity: Entity, block_state_id: BlockStateId) -> Self {
+    pub const fn new(mut entity: Entity, block_state_id: BlockStateId) -> Self {
+        entity.blocks_building = true;
         Self {
             entity,
             block_state_id: AtomicU16::new(block_state_id.as_u16()),
