@@ -58,6 +58,36 @@ impl JavaClient {
                     ));
                 }
             }
+
+            let world = player.world();
+            let vehicle_pos = final_pos.to_block_pos();
+            let check_below = BlockPos::new(vehicle_pos.0.x, vehicle_pos.0.y - 1, vehicle_pos.0.z);
+            let in_lava = world.get_block(&vehicle_pos) == &pumpkin_data::Block::LAVA
+                || world.get_block(&check_below) == &pumpkin_data::Block::LAVA;
+
+            if in_lava {
+                let start_pos = player.entered_lava_pos.load().unwrap_or(final_pos);
+                if player.entered_lava_pos.load().is_none() {
+                    player.entered_lava_pos.store(Some(final_pos));
+                }
+                let dx = final_pos.x - start_pos.x;
+                let dz = final_pos.z - start_pos.z;
+                let distance_horizontal = dx.hypot(dz);
+                player.trigger_advancement(
+                    crate::entity::player::advancement::trigger::AdvancementTrigger::RideEntityInLava {
+                        distance_horizontal,
+                        dimension: world.dimension.minecraft_name.to_string(),
+                        vehicle_type: Some(format!(
+                            "minecraft:{}",
+                            vehicle_entity.entity_type.resource_name
+                        )),
+                    },
+                );
+            } else {
+                player.entered_lava_pos.store(None);
+            }
+        } else {
+            player.entered_lava_pos.store(None);
         }
         entity.set_pos(final_pos);
         for passenger in other_player_passengers {

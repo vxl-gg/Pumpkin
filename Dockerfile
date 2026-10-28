@@ -1,9 +1,10 @@
-FROM alpine:3.24
+FROM ubuntu:26.04
 
 ARG TARGETARCH
 ARG PUMPKIN_TAG=nightly
 
-RUN apk add --no-cache curl ca-certificates && \
+RUN apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends curl ca-certificates netcat-openbsd && \
     case "${TARGETARCH}" in \
         "amd64") BIN_ARCH="X64" ;; \
         "arm64") BIN_ARCH="ARM64" ;; \
@@ -12,10 +13,11 @@ RUN apk add --no-cache curl ca-certificates && \
     curl -fsSL "https://github.com/vxl-gg/Pumpkin/releases/download/${PUMPKIN_TAG}/pumpkin-${BIN_ARCH}-Linux-musl" \
         -o /usr/local/bin/pumpkin && \
     chmod +x /usr/local/bin/pumpkin && \
-    apk del curl
+    apt-get purge -y --auto-remove curl && \
+    rm -rf /var/lib/apt/lists/*
 
-RUN addgroup -g 2613 pumpkin && \
-    adduser -u 2613 -G pumpkin -D -h /pumpkin pumpkin && \
+RUN groupadd -g 2613 pumpkin && \
+    useradd -u 2613 -g pumpkin -m -d /pumpkin pumpkin && \
     chown -R pumpkin:pumpkin /pumpkin
 
 WORKDIR /pumpkin
