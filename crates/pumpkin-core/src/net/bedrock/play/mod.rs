@@ -1,3 +1,5 @@
+pub(super) mod network_stack_latency;
+
 use std::{
     num::NonZero,
     sync::{Arc, atomic::Ordering},

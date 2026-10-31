@@ -749,7 +749,7 @@ impl PumpkinServer {
                         Some(config),
                     ) {
                         client.set_player(player.clone());
-                        client.progress_player_packets(&player).await;
+                        client.progress_player_packets(&player, &server).await;
                         client.close().await;
                         client.await_tasks().await;
                         player.remove().await;

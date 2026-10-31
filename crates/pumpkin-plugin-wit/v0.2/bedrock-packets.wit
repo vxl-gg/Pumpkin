@@ -548,6 +548,13 @@ interface bedrock-packets {
     /// Optional cancellation reason code if the form was dismissed without submission.
     form-cancel-reason: option<u8>,
   }
+  /// Measures round-trip time through the game packet stack in either direction.
+  record s-network-stack-latency {
+    /// Opaque creation timestamp echoed by the recipient.
+    timestamp: s64,
+    /// Whether the recipient must send a response with this timestamp.
+    needs-response: bool,
+  }
   /// Sent by the client to report malformed or unexpected packets received from the server.
   record s-packet-violation-warning {
     /// Violation category (e.g. unknown packet or malformed payload).
@@ -1632,6 +1639,13 @@ interface bedrock-packets {
     /// Fraction of players ticked per frame when throttling is engaged.
     client-throttle-scalar: f32,
   }
+  /// Requests an application round-trip measurement from the client.
+  record c-network-stack-latency {
+    /// Opaque creation timestamp echoed by the recipient.
+    timestamp: s64,
+    /// Whether the recipient must send a response with this timestamp.
+    needs-response: bool,
+  }
   /// Sent by the server to open the sign text editor on the Bedrock client.
   record c-open-sign {
     /// Position of the sign being edited.
@@ -2478,6 +2492,8 @@ interface bedrock-packets {
     s-mob-equipment(s-mob-equipment),
     /// Sent by the client in response to a server-sent modal form dialog.
     s-modal-form-response(s-modal-form-response),
+    /// Measures round-trip time through the game packet stack in either direction.
+    s-network-stack-latency(s-network-stack-latency),
     /// Sent by the client to report malformed or unexpected packets received from the server.
     s-packet-violation-warning(s-packet-violation-warning),
     /// Sent by the client when performing player actions such as mining, sprinting, sneaking, or dimensions changes.
@@ -2573,6 +2589,8 @@ interface bedrock-packets {
     c-network-chunk-publisher-update(c-network-chunk-publisher-update),
     /// Sent by the server in response to [`SRequestNetworkSettings`](crate::bedrock::server::request_network_settings::SRequestNetworkSettings) to configure packet compression and client throttling.
     c-network-settings(c-network-settings),
+    /// Requests an application round-trip measurement from the client.
+    c-network-stack-latency(c-network-stack-latency),
     /// Sent by the server to open the sign text editor on the Bedrock client.
     c-open-sign(c-open-sign),
     /// Sent by the server to inform the client of login results, version compatibility, or player spawn readiness.

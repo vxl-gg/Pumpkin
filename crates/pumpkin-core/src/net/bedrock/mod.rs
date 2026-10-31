@@ -23,6 +23,7 @@ use pumpkin_protocol::{
         client::{
             client_cache_miss_response::{CClientCacheMissResponse, MissingBlobData},
             disconnect::CDisconnect,
+            network_stack_latency::CNetworkStackLatency,
         },
         packet_decoder::BedrockBatchDecoder,
         packet_encoder::BedrockBatchEncoder,
@@ -35,7 +36,7 @@ use pumpkin_protocol::{
             emote_list::SEmoteList, interact::SInteract,
             inventory_transaction::SInventoryTransaction, item_stack_request::SItemStackRequest,
             loading_screen::SLoadingScreen, login::SLogin, mob_equipment::SMobEquipment,
-            modal_form_response::SModalFormResponse,
+            modal_form_response::SModalFormResponse, network_stack_latency::SNetworkStackLatency,
             packet_violation_warning::SPacketViolationWarning, player_action::SPlayerAction,
             player_auth_input::SPlayerAuthInput, player_hotbar::SPlayerHotbar,
             request_ability::SRequestAbility, request_chunk_radius::SRequestChunkRadius,
@@ -108,6 +109,8 @@ pub struct BedrockStreamingPack {
 
 pub struct BedrockClient {
     session: Arc<NetherNetSession>,
+    pub(crate) latency: AtomicCell<Option<u32>>,
+    ping_tracker: std::sync::Mutex<play::network_stack_latency::PingTracker>,
     /// The client's IP address.
     pub address: SocketAddr,
     pub player: ArcSwap<Option<Arc<Player>>>,
@@ -161,6 +164,8 @@ impl BedrockClient {
         let rt_handle = tokio::runtime::Handle::current();
         Self {
             session,
+            latency: AtomicCell::new(None),
+            ping_tracker: std::sync::Mutex::new(play::network_stack_latency::PingTracker::default()),
             player: ArcSwap::new(Arc::new(None)),
             address,
             version: AtomicCell::new(BedrockMinecraftVersion::Unknown),
@@ -198,6 +203,21 @@ impl BedrockClient {
 
     pub fn start_outgoing_packet_task(self: &Arc<Self>) {
         const MAX_BATCH_SIZE: usize = 64;
+
+        let client = self.clone();
+        self.spawn_task(async move {
+            let mut interval = tokio::time::interval(std::time::Duration::from_secs(1));
+            interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+            loop {
+                tokio::select! {
+                    biased;
+                    () = client.close_token.cancelled() => break,
+                    _ = interval.tick() => {
+                        client.latency.store(client.session.latency().await);
+                    }
+                }
+            }
+        });
 
         let client = self.clone();
         self.spawn_task(async move {
@@ -722,9 +742,36 @@ impl BedrockClient {
         PacketHandlerResult::Stop
     }
 
-    pub async fn progress_player_packets(self: &Arc<Self>, player: &Arc<Player>) {
-        while let Some(packet) = self.get_packet().await {
-            player.inbound_packets.push(packet);
+    pub async fn progress_player_packets(
+        self: &Arc<Self>,
+        player: &Arc<Player>,
+        server: &Arc<Server>,
+    ) {
+        let period = std::time::Duration::from_secs(
+            server
+                .advanced_config
+                .networking
+                .java
+                .keep_alive_time
+                .max(1),
+        );
+        let mut interval = tokio::time::interval(period);
+        interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+        interval.tick().await;
+        loop {
+            tokio::select! {
+                biased;
+                () = self.close_token.cancelled() => break,
+                _ = interval.tick() => {
+                    let timestamp = self.ping_tracker.lock().unwrap_or_else(std::sync::PoisonError::into_inner)
+                        .start(std::time::Instant::now());
+                    self.enqueue_client_packet(&CNetworkStackLatency { timestamp, needs_response: true }).await;
+                }
+                packet = self.get_packet() => {
+                    let Some(packet) = packet else { break; };
+                    player.inbound_packets.push(packet);
+                }
+            }
         }
     }
 
@@ -738,6 +785,9 @@ impl BedrockClient {
         let payload = &packet.payload[..];
         let reader = &mut &payload[..];
         match packet.id {
+            SNetworkStackLatency::PACKET_ID => {
+                self.handle_network_stack_latency(player, &SNetworkStackLatency::read(reader)?);
+            }
             SClientCacheStatus::PACKET_ID => {
                 let packet = SClientCacheStatus::read(reader)?;
                 self.client_cache_supported

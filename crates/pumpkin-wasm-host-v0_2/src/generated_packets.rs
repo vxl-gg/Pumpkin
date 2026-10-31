@@ -3235,6 +3235,15 @@ pub fn serialize_bedrock_packet(packet: &BClientboundPacket) -> Option<Bytes> {
             pumpkin_core::net::bedrock::BedrockClient::write_raw_packet(&p, &mut buf).unwrap();
             Some(buf.into())
         }
+        BClientboundPacket::CNetworkStackLatency(data) => {
+            let p = pumpkin_protocol::bedrock::client::CNetworkStackLatency {
+                timestamp: data.timestamp.try_into().unwrap(),
+                needs_response: data.needs_response.try_into().unwrap(),
+            };
+            let mut buf = Vec::new();
+            pumpkin_core::net::bedrock::BedrockClient::write_raw_packet(&p, &mut buf).unwrap();
+            Some(buf.into())
+        }
         BClientboundPacket::COpenSign(data) => {
             let p = pumpkin_protocol::bedrock::client::COpenSign {
                 position: pumpkin_util::math::position::BlockPos::new(
@@ -3440,6 +3449,14 @@ pub fn deserialize_bedrock_serverbound_packet(
             let p = <pumpkin_protocol::bedrock::server::SCursorItemDrag as pumpkin_protocol::BServerPacket>::read(&mut Cursor::new(payload)).ok()?;
             Some(BServerboundPacket::SCursorItemDrag(crate::pumpkin::plugin::bedrock_packets::SCursorItemDrag {
                 state: p.state.try_into().unwrap(),
+            }))
+        }
+        id if id == <pumpkin_protocol::bedrock::server::SNetworkStackLatency as pumpkin_protocol::Packet>::PACKET_ID as i32 => {
+            use pumpkin_protocol::BServerPacket;
+            let p = <pumpkin_protocol::bedrock::server::SNetworkStackLatency as pumpkin_protocol::BServerPacket>::read(&mut Cursor::new(payload)).ok()?;
+            Some(BServerboundPacket::SNetworkStackLatency(crate::pumpkin::plugin::bedrock_packets::SNetworkStackLatency {
+                timestamp: p.timestamp.try_into().unwrap(),
+                needs_response: p.needs_response.try_into().unwrap(),
             }))
         }
         id if id == <pumpkin_protocol::bedrock::server::SPacketViolationWarning as pumpkin_protocol::Packet>::PACKET_ID as i32 => {
@@ -3685,6 +3702,17 @@ impl ToWitClientboundBedrock for pumpkin_protocol::bedrock::client::CNetworkSett
     }
 }
 
+impl ToWitClientboundBedrock for pumpkin_protocol::bedrock::client::CNetworkStackLatency {
+    fn to_wit(&self) -> BClientboundPacket {
+        BClientboundPacket::CNetworkStackLatency(
+            crate::pumpkin::plugin::bedrock_packets::CNetworkStackLatency {
+                timestamp: self.timestamp.try_into().unwrap(),
+                needs_response: self.needs_response.try_into().unwrap(),
+            },
+        )
+    }
+}
+
 impl ToWitClientboundBedrock for pumpkin_protocol::bedrock::client::COpenSign {
     fn to_wit(&self) -> BClientboundPacket {
         BClientboundPacket::COpenSign(crate::pumpkin::plugin::bedrock_packets::COpenSign {
@@ -3892,6 +3920,9 @@ pub fn clientbound_bedrock_any_to_wit(any: &dyn Any) -> Option<BClientboundPacke
         return Some(p.to_wit());
     }
     if let Some(p) = any.downcast_ref::<pumpkin_protocol::bedrock::client::CNetworkSettings>() {
+        return Some(p.to_wit());
+    }
+    if let Some(p) = any.downcast_ref::<pumpkin_protocol::bedrock::client::CNetworkStackLatency>() {
         return Some(p.to_wit());
     }
     if let Some(p) = any.downcast_ref::<pumpkin_protocol::bedrock::client::COpenSign>() {
