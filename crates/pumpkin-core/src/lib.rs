@@ -828,6 +828,7 @@ fn setup_stdin_console(server: &Arc<Server>) {
     let server_clone = server.clone();
     server.spawn_task(async move {
         while !SHOULD_STOP.load(Ordering::Relaxed) {
+            // stdin may never reach EOF (a pipe), so stopping must wake this up too
             let command = select! {
                 command = rx.recv() => command,
                 () = STOP_INTERRUPT.cancelled() => None,
