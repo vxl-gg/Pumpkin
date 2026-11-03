@@ -17,9 +17,9 @@
 //! impl Plugin for MyPlugin {
 //!     fn new() -> Self { MyPlugin }
 //!
-//!     fn on_load(&self, context: &Context) -> Result<(), String> {
+//!     async fn on_load(&self, context: Context) -> Result<(), String> {
 //!         // 1. Initialize plugin-utils (retrieves verified marketplace metadata from host)
-//!         let metadata = pumpkin_plugin_utils::init(context)
+//!         let metadata = pumpkin_plugin_utils::init(&context)
 //!             .map_err(|e| format!("Plugin initialization failed: {e}"))?;
 //!
 //!         // 2. Check license online against marketplace

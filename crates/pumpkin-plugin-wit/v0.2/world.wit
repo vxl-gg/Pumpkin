@@ -929,6 +929,9 @@ interface %world {
         /// Spawns an entity of the specified type at the given position.
         spawn-entity: async func(entity-type: entity-type, pos: position) -> entity;
 
+        /// Spawns a falling block with the specified block state.
+        spawn-falling-block: async func(pos: position, block-state: u16) -> entity;
+
         /// Spawns a dropped item entity with the given item stack at the exact position with zero initial velocity.
         drop-item: async func(pos: position, item: item-stack) -> entity;
 

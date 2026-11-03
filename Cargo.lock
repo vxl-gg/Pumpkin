@@ -3295,6 +3295,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "pumpkin-plugin-api-v0_2"
+version = "0.2.1+26.3-26.60"
+dependencies = [
+ "postcard",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "tracing-serde-structured",
+ "wasmtime",
+ "wit-bindgen 0.63.0",
+]
+
+[[package]]
 name = "pumpkin-plugin-runtime"
 version = "0.2.1+26.3-26.60"
 dependencies = [
@@ -3310,7 +3323,7 @@ dependencies = [
 name = "pumpkin-plugin-utils"
 version = "0.2.1+26.3-26.60"
 dependencies = [
- "pumpkin-plugin-api",
+ "pumpkin-plugin-api-v0_2",
  "reqwest",
  "rustls",
  "serde",

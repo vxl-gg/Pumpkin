@@ -6,7 +6,7 @@ license = "MIT OR Apache-2.0"
 description = "Utilities for Pumpkin plugins: licensing, lease caching, and update checks."
 
 [dependencies]
-pumpkin-plugin-api = { workspace = true }
+pumpkin-plugin-api = { package = "pumpkin-plugin-api-v0_2", path = "../pumpkin-plugin-api-v0_2" }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 tracing = { workspace = true }

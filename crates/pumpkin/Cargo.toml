@@ -27,10 +27,10 @@ tracing.workspace = true
 console-subscriber = { workspace = true, optional = true }
 
 [features]
-default = ["plugin-v0_1"]
+default = ["plugin-v0_1", "plugin-v0_2"]
 plugin-v0_1 = ["pumpkin-wasm-host/v0_1"]
 console-subscriber = ["dep:console-subscriber"]
-# Load plugins built against the v0.2 API. Off until the v0.2 ABI is finished.
+# Load plugins built against the preview v0.2 API.
 plugin-v0_2 = ["pumpkin-wasm-host/v0_2"]
 
 [lints]
