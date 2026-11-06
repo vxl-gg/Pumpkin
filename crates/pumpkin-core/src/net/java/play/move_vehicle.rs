@@ -16,14 +16,16 @@ impl JavaClient {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .clone();
-        if let Some(vehicle) = vehicle {
+        if let Some(vehicle) = &vehicle {
             let vehicle_entity = vehicle.get_entity();
-            let from = vehicle_entity.pos.load();
+            let old_pos = vehicle_entity.pos.load();
             vehicle_entity.set_pos(pos);
             vehicle_entity.set_rotation(packet.yaw, packet.pitch);
-
+            vehicle_entity
+                .on_ground
+                .store(packet.on_ground, Ordering::Relaxed);
             if let Some(vehicle) = vehicle.get_vehicle_entity() {
-                let move_result = vehicle.move_vehicle(from, pos);
+                let move_result = vehicle.move_vehicle(old_pos, pos);
                 final_pos = move_result.position;
                 vehicle_entity.set_pos(final_pos);
 
@@ -35,7 +37,6 @@ impl JavaClient {
                 let world = vehicle_entity.world.load();
                 for passenger in passengers {
                     let passenger_entity = passenger.get_entity();
-                    passenger_entity.set_pos(final_pos);
                     if passenger_entity.entity_id != entity.entity_id
                         && let Some(player) = world.get_player_by_id(passenger_entity.entity_id)
                     {
@@ -57,6 +58,16 @@ impl JavaClient {
                         vehicle_entity.pitch.load(),
                     ));
                 }
+            }
+
+            vehicle_entity.emit_client_movement(vehicle.as_ref(), final_pos - old_pos);
+            if let Some(living) = vehicle.get_living_entity() {
+                living.fall(
+                    vehicle.as_ref(),
+                    final_pos.y - old_pos.y,
+                    packet.on_ground,
+                    false,
+                );
             }
 
             let world = player.world();
@@ -89,11 +100,15 @@ impl JavaClient {
         } else {
             player.entered_lava_pos.store(None);
         }
-        entity.set_pos(final_pos);
+        match &vehicle {
+            Some(vehicle) => crate::entity::position_riders(vehicle.as_ref()),
+            None => entity.set_pos(final_pos),
+        }
         for passenger in other_player_passengers {
             chunker::update_position(&passenger);
         }
-        let distance = last_pos.squared_distance_to_vec(&final_pos).sqrt();
+        let new_pos = entity.pos.load();
+        let distance = last_pos.squared_distance_to_vec(&new_pos).sqrt();
         let cm = (distance * 100.0).round() as i32;
         if cm > 0 {
             let stat = player.get_movement_statistic();
