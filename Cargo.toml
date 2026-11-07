@@ -122,11 +122,11 @@ rust-version = "1.97"
 license = "GPL-3.0"
 
 [profile.release]
-lto = "thin"
+lto = "fat"
 strip = "debuginfo"
 codegen-units = 1
 
-# Keep the large library crates partitioned so ThinLTO can optimize them in parallel.
+# Compile the large library crates in parallel before the final fat-LTO pass.
 [profile.release.package.pumpkin-data]
 codegen-units = 16
 
