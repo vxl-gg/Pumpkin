@@ -10,7 +10,7 @@ RUN apt-get update && \
         "arm64") BIN_ARCH="ARM64" ;; \
         *) echo "Unsupported architecture: ${TARGETARCH}" && exit 1 ;; \
     esac && \
-    curl -fsSL "https://github.com/vxl-gg/Pumpkin/releases/download/${PUMPKIN_TAG}/pumpkin-${BIN_ARCH}-Linux-musl" \
+    curl -fsSL "https://github.com/vxl-gg/Pumpkin/releases/download/${PUMPKIN_TAG}/pumpkin-${BIN_ARCH}-Linux" \
         -o /usr/local/bin/pumpkin && \
     chmod +x /usr/local/bin/pumpkin && \
     apt-get purge -y --auto-remove curl && \
