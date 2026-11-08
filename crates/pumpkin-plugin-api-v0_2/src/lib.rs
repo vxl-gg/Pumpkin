@@ -51,7 +51,9 @@ mod registry;
 pub mod scheduler;
 pub mod worldgen;
 
-/// The generated `pumpkin:plugin@0.2.0` guest bindings
+/// The generated `pumpkin:plugin@0.2.0` guest bindings.
+///
+/// The `handle-event` export is generated only for Wasm targets.
 #[allow(
     clippy::all,
     clippy::pedantic,
@@ -61,16 +63,28 @@ pub mod worldgen;
     missing_docs
 )]
 pub mod wit {
-    wit_bindgen::generate!({
-        path: "../pumpkin-plugin-wit/v0.2",
-        world: "plugin",
-        pub_export_macro: true,
-        chainable_methods: [
-            "pumpkin:plugin/command@0.2.0#command",
-            "pumpkin:plugin/command@0.2.0#command-node",
-            "pumpkin:plugin/text@0.2.0#text-component"
-        ]
-    });
+    macro_rules! generate_bindings {
+        ($($options:tt)*) => {
+            wit_bindgen::generate!({
+                path: "../pumpkin-plugin-wit/v0.2",
+                world: "plugin",
+                pub_export_macro: true,
+                chainable_methods: [
+                    "pumpkin:plugin/command@0.2.0#command",
+                    "pumpkin:plugin/command@0.2.0#command-node",
+                    "pumpkin:plugin/text@0.2.0#text-component"
+                ],
+                $($options)*
+            });
+        };
+    }
+
+    #[cfg(target_family = "wasm")]
+    generate_bindings!();
+
+    // The async event adapter expands every event variant and is only used in a Wasm component.
+    #[cfg(not(target_family = "wasm"))]
+    generate_bindings!(skip: ["handle-event"],);
 }
 
 /// Host interfaces, with the async and synchronous functions the WIT declares
@@ -460,6 +474,7 @@ macro_rules! register_plugin {
                     $crate::runtime::on_unload(context).await
                 }
 
+                #[cfg(target_family = "wasm")]
                 async fn handle_event(
                     event_id: u32,
                     server: $crate::host::server::Server,
