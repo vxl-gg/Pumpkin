@@ -52,12 +52,12 @@ impl ScoreboardTarget for World {
 
     fn send_je<J: ClientPacket + Sync>(&self, je_packet: &J) {
         let players = self.players.load();
-        let recipients = Self::collect_java_recipients_by_version(
+        Self::broadcast_java_players(
+            je_packet,
             players
                 .iter()
                 .filter(|player| player.scoreboard_initialized.load(Ordering::Acquire)),
         );
-        Self::broadcast_java_grouped(je_packet, recipients);
     }
 }
 
@@ -850,10 +850,16 @@ pub struct Team {
 
 impl Team {
     pub(crate) const ALLOW_FRIENDLY_FIRE: i8 = 0x01;
+    pub(crate) const SEE_FRIENDLY_INVISIBLES: i8 = 0x02;
 
     #[must_use]
     pub const fn is_allow_friendly_fire(&self) -> bool {
         self.options & Self::ALLOW_FRIENDLY_FIRE != 0
+    }
+
+    #[must_use]
+    pub const fn can_see_friendly_invisibles(&self) -> bool {
+        self.options & Self::SEE_FRIENDLY_INVISIBLES != 0
     }
 }
 

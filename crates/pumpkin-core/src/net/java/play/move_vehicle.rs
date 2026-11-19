@@ -11,11 +11,7 @@ impl JavaClient {
         let pos = Vector3::new(packet.x, packet.y, packet.z);
         let mut final_pos = pos;
         let mut other_player_passengers = Vec::new();
-        let vehicle = entity
-            .vehicle
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .clone();
+        let vehicle = entity.get_vehicle();
         if let Some(vehicle) = &vehicle {
             let vehicle_entity = vehicle.get_entity();
             let old_pos = vehicle_entity.pos.load();
@@ -62,12 +58,7 @@ impl JavaClient {
 
             vehicle_entity.emit_client_movement(vehicle.as_ref(), final_pos - old_pos);
             if let Some(living) = vehicle.get_living_entity() {
-                living.fall(
-                    vehicle.as_ref(),
-                    final_pos.y - old_pos.y,
-                    packet.on_ground,
-                    false,
-                );
+                living.fall(vehicle.as_ref(), final_pos.y - old_pos.y, packet.on_ground);
             }
 
             let world = player.world();

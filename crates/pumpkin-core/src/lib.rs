@@ -66,6 +66,7 @@ pub mod net;
 pub mod plugin;
 pub mod server;
 pub mod telemetry;
+pub mod update_checker;
 pub mod world;
 
 pub struct LoggingConfig {
@@ -246,14 +247,10 @@ pub async fn serve_java_connection(server: Arc<Server>, mut pending: PendingConn
                 JavaClient::from_pending(pending, profile.clone(), config.clone());
             java_client.start_outgoing_packet_task();
 
-            if let Some((player, world)) = server.add_player(
-                Arc::new(ClientPlatform::Java(java_client)),
-                profile,
-                Some(config),
-            ) {
-                if let ClientPlatform::Java(client) = player.client.as_ref() {
-                    client.set_player(player.clone());
-                }
+            let client = Arc::new(ClientPlatform::Java(java_client));
+            if let Some((player, world)) =
+                Box::pin(server.add_player(client.clone(), profile, Some(config))).await
+            {
                 world
                     .spawn_java_player(&server.basic_config, &player, &server)
                     .await;
@@ -261,7 +258,6 @@ pub async fn serve_java_connection(server: Arc<Server>, mut pending: PendingConn
                 if let ClientPlatform::Java(client) = player.client.as_ref() {
                     client.progress_player_packets(&player, &server).await;
 
-                    // Close when done
                     client.close();
                     client.await_tasks().await;
                 }
@@ -273,6 +269,9 @@ pub async fn serve_java_connection(server: Arc<Server>, mut pending: PendingConn
                 if let Err(e) = server.advancement_manager.save_player(&player).await {
                     error!("Failed to save player advancement on disconnect: {e}");
                 }
+            } else if let ClientPlatform::Java(client) = client.as_ref() {
+                client.close();
+                client.await_tasks().await;
             }
         }
     }
@@ -548,6 +547,7 @@ impl PumpkinServer {
             .await;
 
         self.server.start_telemetry();
+        self.server.start_update_checker();
         self.server.management_hub.broadcast_server_started();
 
         for (listening, platform) in [
@@ -712,16 +712,19 @@ impl PumpkinServer {
             // Branch for Bedrock NetherNet connections negotiated over HTTP/WebRTC.
             nethernet_result = resolve_some(self.nethernet_listener.as_ref(), NetherNetListener::accept) => {
                 if let Some((session, client_addr)) = nethernet_result {
+                    let client_id = *master_client_id_counter;
                     *master_client_id_counter += 1;
                     let be_clients = bedrock_clients.clone();
                     let packet_limiter = PacketRateLimiter::from_config(
                         &self.server.advanced_config.networking.bedrock.packet_limiter,
                     );
                     let client = Arc::new(BedrockClient::new(
+                        client_id,
                         session.clone(),
                         client_addr,
                         be_clients,
                         packet_limiter,
+                        Arc::downgrade(&self.server),
                     ));
                     client.start_outgoing_packet_task();
                     bedrock_clients.lock().await.insert(client_addr, client.clone());
@@ -762,12 +765,13 @@ impl PumpkinServer {
                     client.await_tasks().await;
                 }
                 PacketHandlerResult::ReadyToPlay(profile, config) => {
-                    if let Some((player, _world)) = server.add_player(
+                    if let Some((player, _world)) = Box::pin(server.add_player(
                         Arc::new(ClientPlatform::Bedrock(client.clone())),
                         profile,
                         Some(config),
-                    ) {
-                        client.set_player(player.clone());
+                    ))
+                    .await
+                    {
                         client.progress_player_packets(&player).await;
                         client.close().await;
                         client.await_tasks().await;
@@ -777,6 +781,9 @@ impl PumpkinServer {
                         {
                             error!("Failed to save player data on disconnect: {error}");
                         }
+                    } else {
+                        client.close().await;
+                        client.await_tasks().await;
                     }
                 }
             }
