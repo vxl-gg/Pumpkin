@@ -834,6 +834,29 @@ impl Player {
         self.login_admission.defer()
     }
 
+    /// Returns transport round-trip time in milliseconds, or None when unavailable.
+    #[must_use]
+    pub fn get_latency(&self) -> Option<u32> {
+        match self.client.as_ref() {
+            ClientPlatform::Java(client) => client
+                .latency
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .as_ref()?
+                .get(),
+            ClientPlatform::Bedrock(client) => client.latency.load(),
+        }
+    }
+
+    /// Applies the vanilla keep-alive smoothing to an application ping sample.
+    pub fn update_ping(&self, sample_ms: u32) {
+        let previous = u64::from(self.ping.load(Ordering::Relaxed));
+        self.ping.store(
+            ((previous * 3 + u64::from(sample_ms)) / 4) as u32,
+            Ordering::Relaxed,
+        );
+    }
+
     pub async fn fetch_skin(
         properties: &[Property],
     ) -> Option<pumpkin_protocol::bedrock::client::Skin> {
@@ -1839,7 +1862,7 @@ impl Player {
             match attack_type {
                 AttackType::Knockback => knockback_strength += 1.0,
                 AttackType::Sweeping => {
-                    combat::spawn_sweep_particle(attacker_entity, &world, &pos);
+                    combat::spawn_sweep_particle(attacker_entity, &world);
 
                     let mut sweep_damage = 1.0;
                     if let Some(enchantments) = item_stack.get_data_component::<EnchantmentsImpl>()
