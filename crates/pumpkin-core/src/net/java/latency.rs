@@ -1,13 +1,13 @@
 use tokio::net::TcpStream;
 
-#[cfg(unix)]
+#[cfg(any(target_os = "linux", target_os = "macos"))]
 use std::os::fd::{AsFd, AsRawFd, OwnedFd};
 #[cfg(windows)]
 use std::os::windows::io::{AsRawSocket, AsSocket, OwnedSocket};
 
 /// A socket reference retained for querying the kernel's TCP RTT estimate.
 pub struct TcpLatency {
-    #[cfg(unix)]
+    #[cfg(any(target_os = "linux", target_os = "macos"))]
     socket: OwnedFd,
     #[cfg(windows)]
     socket: OwnedSocket,
@@ -15,7 +15,7 @@ pub struct TcpLatency {
 
 impl TcpLatency {
     pub(crate) fn new(stream: &TcpStream) -> Option<Self> {
-        #[cfg(unix)]
+        #[cfg(any(target_os = "linux", target_os = "macos"))]
         {
             Some(Self {
                 socket: stream.as_fd().try_clone_to_owned().ok()?,
@@ -27,7 +27,7 @@ impl TcpLatency {
                 socket: stream.as_socket().try_clone_to_owned().ok()?,
             })
         }
-        #[cfg(not(any(unix, windows)))]
+        #[cfg(not(any(target_os = "linux", target_os = "macos", windows)))]
         {
             let _ = stream;
             None
