@@ -368,9 +368,7 @@ impl BedrockClient {
         }
     }
 
-    pub fn start_outgoing_packet_task(self: &Arc<Self>) {
-        const MAX_BATCH_SIZE: usize = 64;
-
+    fn start_latency_task(self: &Arc<Self>) {
         let client = self.clone();
         self.spawn_task(async move {
             let mut interval = tokio::time::interval(std::time::Duration::from_secs(1));
@@ -385,6 +383,12 @@ impl BedrockClient {
                 }
             }
         });
+    }
+
+    pub fn start_outgoing_packet_task(self: &Arc<Self>) {
+        const MAX_BATCH_SIZE: usize = 64;
+
+        self.start_latency_task();
 
         let client = self.clone();
         self.spawn_task(async move {
