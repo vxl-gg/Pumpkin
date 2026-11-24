@@ -312,6 +312,7 @@ use crate::plugin::player::player_change_world::PlayerChangeWorldEvent;
 use crate::plugin::player::player_gamemode_change::PlayerGamemodeChangeEvent;
 use crate::plugin::player::player_permission_check::PlayerPermissionCheckEvent;
 use crate::plugin::player::player_teleport::PlayerTeleportEvent;
+use crate::plugin::player::player_transfer::PlayerTransferEvent;
 use crate::plugin::server::packet::PacketSentEvent;
 use crate::plugin::world::chunk_send::ChunkSend;
 use crate::server::Server;
@@ -1377,7 +1378,7 @@ impl Player {
                 skin: (**self.bedrock_skin.load()).clone(),
                 is_teacher: false,
                 is_host: false,
-                is_sub_client: false,
+                is_sub_client: self.client.bedrock().is_some_and(|c| c.is_sub_client()),
                 player_color: [0; 4],
             }],
         }
@@ -1765,16 +1766,17 @@ impl Player {
         }
 
         let old_movement = victim_entity.velocity.load();
+        let damage_type = if is_mace_smash {
+            DamageType::MACE_SMASH
+        } else {
+            item_stack
+                .get_data_component::<pumpkin_data::data_component_impl::DamageTypeImpl>()
+                .map_or(DamageType::PLAYER_ATTACK, |dt| dt.damage_type)
+        };
         if !victim.damage_with_context(
             victim.as_ref(),
             damage as f32,
-            if is_mace_smash {
-                DamageType::MACE_SMASH
-            } else {
-                item_stack
-                    .get_data_component::<pumpkin_data::data_component_impl::DamageTypeImpl>()
-                    .map_or(DamageType::PLAYER_ATTACK, |dt| dt.damage_type)
-            },
+            damage_type,
             None,
             Some(self),
             Some(self),
@@ -1816,7 +1818,12 @@ impl Player {
             mace_smash_knockback(&world, self, victim.as_ref());
         }
 
-        crate::enchantment::EnchantmentHelper::on_post_attack(self, victim_entity, &item_stack);
+        crate::enchantment::EnchantmentHelper::on_post_attack(
+            self,
+            victim.as_ref(),
+            &item_stack,
+            damage_type,
+        );
 
         if is_mace_smash_living {
             self.living_entity.fall_distance.store(0.0);
@@ -5244,21 +5251,40 @@ impl Player {
         self.abilities.lock().is_ok_and(|a| a.allow_modify_world)
     }
 
-    /// Requests a transfer to another server without waiting for the client to reconnect.
-    pub fn transfer(&self, host: &str, port: u16) {
+    /// Requests a transfer and returns the destination if the packet was queued.
+    ///
+    /// The result does not indicate whether the client reached its destination.
+    pub fn transfer(self: &Arc<Self>, host: &str, port: u16) -> Option<(String, u16)> {
         if self.client.closed() {
-            return;
+            return None;
+        }
+
+        let mut event = PlayerTransferEvent::new(self.clone(), host.to_owned(), port);
+        let server = self.world().server.upgrade()?;
+        server.plugin_manager.fire_blocking(&server, &mut event);
+        if event.cancelled {
+            return None;
+        }
+
+        let PlayerTransferEvent { host, port, .. } = event;
+        if self.client.closed() {
+            return None;
         }
         // Mark before queuing: the client may disconnect as soon as it receives the packet.
         self.transfer_requested.store(true, Ordering::Relaxed);
-        self.try_enqueue_packet_editioned(
-            &pumpkin_protocol::java::client::play::CTransfer::new(host, VarInt(i32::from(port))),
-            &pumpkin_protocol::bedrock::client::transfer::CTransfer::new(
-                host.to_string(),
-                port,
-                false,
-            ),
-        );
+        self.client
+            .try_queue_packet_editioned(
+                &pumpkin_protocol::java::client::play::CTransfer::new(
+                    &host,
+                    VarInt(i32::from(port)),
+                ),
+                &pumpkin_protocol::bedrock::client::transfer::CTransfer::new(
+                    host.clone(),
+                    port,
+                    false,
+                ),
+            )
+            .then_some((host, port))
     }
 
     /// Returns whether this session has requested a transfer, not whether it succeeded.
@@ -6598,9 +6624,11 @@ impl Player {
 
     pub fn add_effect(&self, effect: Effect) {
         self.living_entity.add_effect(effect);
-        self.trigger_advancement(
-            crate::entity::player::advancement::trigger::AdvancementTrigger::EffectsChanged,
-        );
+    }
+
+    pub fn add_effect_with_source(&self, effect: Effect, source: &dyn EntityBase) {
+        self.living_entity
+            .add_effect_with_source(effect, Some(source));
     }
 
     pub fn has_effect(&self, effect_type: &'static StatusEffect) -> bool {
@@ -9705,6 +9733,12 @@ mod tests {
         bedrock_container_slot, bedrock_container_type, read_last_death_location,
         read_root_vehicle, write_last_death_location, write_root_vehicle,
     };
+    use crate::{
+        plugin::{BoxFuture, EventHandler, player::player_transfer::PlayerTransferEvent},
+        server::Server,
+    };
+    use std::sync::Arc;
+
     use pumpkin_data::{Block, screen::WindowType};
     use pumpkin_nbt::{compound::NbtCompound, tag::NbtTag};
     use pumpkin_protocol::bedrock::network_item::ContainerName;
@@ -9771,8 +9805,31 @@ mod tests {
         assert_eq!(read_root_vehicle(&nbt), Some(expected));
     }
 
-    #[tokio::test]
-    async fn transfer_marks_leave_event_before_sending_packet()
+    struct TransferHandler;
+
+    impl EventHandler<PlayerTransferEvent> for TransferHandler {
+        fn handle_blocking<'a>(
+            &'a self,
+            _server: &'a Arc<Server>,
+            event: &'a mut PlayerTransferEvent,
+        ) -> BoxFuture<'a, ()> {
+            Box::pin(async move {
+                if event.host == "cancel.example" {
+                    event.cancelled = true;
+                } else if event.host == "closed.example" {
+                    if let Some(client) = event.player.client.java() {
+                        client.close();
+                    }
+                } else {
+                    event.host = "localhost".into();
+                    event.port = 25566;
+                }
+            })
+        }
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn transfer_event_can_cancel_or_redirect_a_packet()
     -> Result<(), Box<dyn std::error::Error>> {
         use super::Player;
         use crate::{
@@ -9781,8 +9838,7 @@ mod tests {
                 ClientPlatform, GameProfile, PacketRateLimiter, PlayerConfig,
                 java::{JavaClient, pending::PendingConnection},
             },
-            plugin::api::events::player::player_leave::PlayerLeaveEvent,
-            server::Server,
+            plugin::{EventPriority, api::events::player::player_leave::PlayerLeaveEvent},
         };
         use arc_swap::ArcSwap;
         use pumpkin_config::{AdvancedConfiguration, BasicConfiguration, TelemetryConfig};
@@ -9796,7 +9852,7 @@ mod tests {
             packet::MultiVersionJavaPacket,
         };
         use pumpkin_util::{GameMode, text::TextComponent};
-        use std::{sync::Arc, time::Duration};
+        use std::time::Duration;
 
         let directory = tempfile::tempdir()?;
         let basic = BasicConfiguration {
@@ -9847,10 +9903,17 @@ mod tests {
             &world,
             GameMode::Survival,
         ));
-        assert!(!PlayerLeaveEvent::new(player.clone(), TextComponent::text("")).transfer_requested);
+        server
+            .plugin_manager
+            .register(Arc::new(TransferHandler), EventPriority::Normal, true);
 
-        player.transfer("localhost", 25566);
-        // The writer has not run yet on this current-thread runtime.
+        assert!(!player.transfer_requested());
+        assert_eq!(player.transfer("cancel.example", 25565), None);
+        assert!(!player.transfer_requested());
+        assert_eq!(
+            player.transfer("redirect.example", 25565),
+            Some(("localhost".into(), 25566))
+        );
         assert!(PlayerLeaveEvent::new(player.clone(), TextComponent::text("")).transfer_requested);
         let client = player.client.java().ok_or("No Java client")?;
         client.try_send_packet(&CKeepAlive::new(1));
@@ -9860,7 +9923,7 @@ mod tests {
         assert_eq!(packet.id, CTransfer::to_id(CURRENT_MC_VERSION));
         // Java transfer payload: UTF-8 host preceded by its length, followed by VarInt port.
         assert_eq!(packet.payload.as_ref(), b"\x09localhost\xde\xc7\x01");
-        client.close();
+        assert_eq!(player.transfer("closed.example", 25565), None);
         client.await_tasks().await;
         Ok(())
     }
