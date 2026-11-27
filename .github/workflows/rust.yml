@@ -3,7 +3,7 @@ name: Cargo Build, Test, and Linting
 on:
   push:
     branches:
-      - master
+      - integration
   pull_request:
   workflow_dispatch:
     inputs:
@@ -355,7 +355,7 @@ jobs:
       - run: rustup update ${{ env.CI_RUST_TOOLCHAIN_VER }} && rustup default ${{ env.CI_RUST_TOOLCHAIN_VER }}
       - uses: Swatinem/rust-cache@v2
       - name: Build release
-        run: cargo build --verbose --release
+        run: cargo build --verbose --release --locked -p pumpkin --bin pumpkin --features plugin-v0_2
       - name: Prepare artifact
         shell: bash
         run: |
@@ -391,7 +391,7 @@ jobs:
       - name: Build release with cargo ndk
         env:
           CARGO_NDK_PLATFORM: 24
-        run: cargo ndk -t arm64-v8a build --release --locked
+        run: cargo ndk -t arm64-v8a build --release --locked -p pumpkin --bin pumpkin --features plugin-v0_2
       - name: Prepare artifact
         run: |
           mkdir -p dist
@@ -408,7 +408,7 @@ jobs:
       contents: write
     needs: [build_release, build_android_release]
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/integration'
     steps:
       - uses: actions/checkout@v7
       - name: Download prebuilt binary artifacts
@@ -423,7 +423,7 @@ jobs:
           echo "From commit: $(git rev-parse --short HEAD)" > dist/RELEASE.md
           echo "Generated on: $(date -u +"%Y-%m-%d %H:%M") UTC" >> dist/RELEASE.md
           echo "" >> dist/RELEASE.md
-          echo "Canary build of master for testing, built without LTO. The fully optimized daily build is the Nightly Build release." >> dist/RELEASE.md
+          echo "Canary build of integration for testing, built without LTO. The fully optimized daily build is the Nightly Build release." >> dist/RELEASE.md
           cat dist/RELEASE.md
       - name: Update the canary tag
         run: |

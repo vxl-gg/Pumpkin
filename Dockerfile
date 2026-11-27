@@ -21,9 +21,9 @@ RUN apt-get -o Acquire::Retries=3 update && \
         *) echo "Unsupported architecture: ${TARGETARCH}" && exit 1 ;; \
     esac && \
     if [ "${PUMPKIN_TAG}" = "latest" ]; then \
-        DOWNLOAD_URL="https://github.com/Pumpkin-MC/Pumpkin/releases/latest/download/pumpkin-${BIN_ARCH}-Linux"; \
+        DOWNLOAD_URL="https://github.com/vxl-gg/Pumpkin/releases/latest/download/pumpkin-${BIN_ARCH}-Linux"; \
     else \
-        DOWNLOAD_URL="https://github.com/Pumpkin-MC/Pumpkin/releases/download/${PUMPKIN_TAG}/pumpkin-${BIN_ARCH}-Linux"; \
+        DOWNLOAD_URL="https://github.com/vxl-gg/Pumpkin/releases/download/${PUMPKIN_TAG}/pumpkin-${BIN_ARCH}-Linux"; \
     fi && \
     curl -fsSL --retry 3 "${DOWNLOAD_URL}" -o /usr/local/bin/pumpkin && \
     chmod +x /usr/local/bin/pumpkin && \

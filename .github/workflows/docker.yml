@@ -14,7 +14,7 @@ on:
       - completed
   push:
     branches:
-      - "master"
+      - "integration"
     paths:
       - "Dockerfile"
       - ".dockerignore"
@@ -35,7 +35,7 @@ concurrency:
 jobs:
   docker-build-deploy:
     if: >-
-      github.repository == 'Pumpkin-MC/Pumpkin' &&
+      github.repository == 'vxl-gg/Pumpkin' &&
       (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success')
     permissions:
       contents: read
@@ -89,6 +89,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
         with:
+          ref: integration
           submodules: recursive
 
       - name: Login to GitHub CR
@@ -135,7 +136,7 @@ jobs:
 
   merge:
     if: >-
-      github.repository == 'Pumpkin-MC/Pumpkin' &&
+      github.repository == 'vxl-gg/Pumpkin' &&
       (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success')
     permissions:
       contents: read
@@ -160,7 +161,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
         with:
-          ref: ${{ needs.docker-build-deploy.outputs.pumpkin_tag != 'nightly' && needs.docker-build-deploy.outputs.pumpkin_tag != 'canary' && needs.docker-build-deploy.outputs.pumpkin_tag != 'latest' && needs.docker-build-deploy.outputs.pumpkin_tag || '' }}
+          ref: ${{ needs.docker-build-deploy.outputs.pumpkin_tag != 'nightly' && needs.docker-build-deploy.outputs.pumpkin_tag != 'canary' && needs.docker-build-deploy.outputs.pumpkin_tag != 'latest' && needs.docker-build-deploy.outputs.pumpkin_tag || 'integration' }}
           submodules: recursive
 
       - name: Download Digests
@@ -196,6 +197,7 @@ jobs:
           images: ${{ env.REGISTRY }}/${{ env.REGISTRY_IMAGE }}
           tags: |
             type=raw,value=master,enable=${{ env.PUMPKIN_TAG == 'nightly' }}
+            type=raw,value=integration,enable=${{ env.PUMPKIN_TAG == 'nightly' }}
             type=raw,value=nightly,enable=${{ env.PUMPKIN_TAG == 'nightly' }}
             type=raw,value=${{ env.DOCKER_RELEASE_TAG }},enable=${{ env.PUMPKIN_TAG != 'nightly' }}
             type=raw,value=latest,enable=${{ env.IS_RELEASE == 'true' }}

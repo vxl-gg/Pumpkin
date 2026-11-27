@@ -16,16 +16,19 @@ env:
 jobs:
   check:
     name: Check for new commits
-    if: github.repository == 'Pumpkin-MC/Pumpkin'
+    if: github.repository == 'vxl-gg/Pumpkin'
     runs-on: ubuntu-slim
     outputs:
       changed: ${{ steps.check.outputs.changed }}
+      revision: ${{ steps.check.outputs.revision }}
     steps:
-      - name: Compare master with the nightly tag
+      - name: Compare integration with the nightly tag
         id: check
         run: |
+          INTEGRATION_SHA=$(git ls-remote "https://github.com/${{ github.repository }}" refs/heads/integration | cut -f1)
+          echo "revision=$INTEGRATION_SHA" >> "$GITHUB_OUTPUT"
           LAST=$(git ls-remote "https://github.com/${{ github.repository }}" refs/tags/nightly | cut -f1)
-          if [ "${{ github.event_name }}" == "workflow_dispatch" ] || [ "$LAST" != "${{ github.sha }}" ]; then
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ] || [ "$LAST" != "$INTEGRATION_SHA" ]; then
             echo "changed=true" >> "$GITHUB_OUTPUT"
           else
             echo "changed=false" >> "$GITHUB_OUTPUT"
@@ -62,6 +65,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
+          ref: ${{ needs.check.outputs.revision }}
           submodules: recursive
       - run: rustup update stable && rustup default stable
       - uses: Swatinem/rust-cache@v2
@@ -69,7 +73,7 @@ jobs:
           key: ${{ matrix.asset }}
       - name: Build release
         shell: bash
-        run: cargo build --verbose --release
+        run: cargo build --verbose --release --locked -p pumpkin --bin pumpkin --features plugin-v0_2
       - name: Prepare artifact
         shell: bash
         run: |
@@ -92,6 +96,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
+          ref: ${{ needs.check.outputs.revision }}
           submodules: recursive
       - run: rustup update stable && rustup default stable
       - run: rustup target add aarch64-linux-android
@@ -105,7 +110,7 @@ jobs:
       - name: Build release with cargo ndk
         env:
           CARGO_NDK_PLATFORM: 24
-        run: cargo ndk -t arm64-v8a build --release --locked
+        run: cargo ndk -t arm64-v8a build --release --locked -p pumpkin --bin pumpkin --features plugin-v0_2
       - name: Prepare artifact
         run: |
           mkdir -p dist
@@ -120,11 +125,12 @@ jobs:
     name: Draft nightly release
     permissions:
       contents: write
-    needs: [build, build_android]
+    needs: [check, build, build_android]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
         with:
+          ref: ${{ needs.check.outputs.revision }}
           submodules: recursive
       - name: Download prebuilt binary artifacts
         uses: actions/download-artifact@v8

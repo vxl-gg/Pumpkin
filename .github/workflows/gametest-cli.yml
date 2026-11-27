@@ -20,7 +20,7 @@ jobs:
     if: >-
       github.event_name != 'workflow_run' ||
       (github.event.workflow_run.event == 'push' &&
-       github.event.workflow_run.head_branch == 'master' &&
+       github.event.workflow_run.head_branch == 'integration' &&
        github.event.workflow_run.conclusion == 'success')
     runs-on: ubuntu-latest
     steps:
@@ -33,7 +33,7 @@ jobs:
         with:
           shared-key: debug-${{ runner.os }}-${{ runner.arch }}
       - name: Build GameTest server
-        run: cargo build --locked -p pumpkin
+        run: cargo build --locked -p pumpkin --features plugin-v0_2
       - name: Run GameTests
         run: target/debug/pumpkin --tests --universe gametestserver --report
       - uses: actions/setup-node@v4
