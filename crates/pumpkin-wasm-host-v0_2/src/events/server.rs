@@ -12,7 +12,9 @@ use crate::{
         RawPacket, ServerBroadcastEvent as ServerBroadcastEventData,
         ServerCommandEvent as ServerCommandEventData, ServerListPingAddress,
         ServerListPingEvent as ServerListPingEventData, ServerLoadEvent as ServerLoadEventData,
-        ServerLoadType, ServerTickEndEvent as ServerTickEndEventData,
+        ServerLoadType, ServerPlatform as ServerPlatformData,
+        ServerPlatformReadyEvent as ServerPlatformReadyEventData,
+        ServerTickEndEvent as ServerTickEndEventData,
         ServerTickStartEvent as ServerTickStartEventData, ServerboundPacket,
     },
 };
@@ -28,6 +30,7 @@ use pumpkin_core::plugin::server::{
     server_broadcast::ServerBroadcastEvent,
     server_command::ServerCommandEvent,
     server_load::{LoadType, ServerLoadEvent},
+    server_platform_ready::{ServerPlatform, ServerPlatformReadyEvent},
     server_tick_end::ServerTickEndEvent,
     server_tick_start::ServerTickStartEvent,
 };
@@ -435,6 +438,28 @@ impl ToFromWasmEvent for MapInitializeEvent {
     fn from_wasm_event(data: Self::Wit, _state: &mut PluginHostState) -> Self {
         Self {
             map_id: data.map_id,
+        }
+    }
+}
+
+impl ToFromWasmEvent for ServerPlatformReadyEvent {
+    type Wit = ServerPlatformReadyEventData;
+
+    fn to_wasm_event(&self, _state: &mut PluginHostState) -> Self::Wit {
+        Self::Wit {
+            platform: match self.platform {
+                ServerPlatform::Java => ServerPlatformData::Java,
+                ServerPlatform::Bedrock => ServerPlatformData::Bedrock,
+            },
+        }
+    }
+
+    fn from_wasm_event(data: Self::Wit, _state: &mut PluginHostState) -> Self {
+        Self {
+            platform: match data.platform {
+                ServerPlatformData::Java => ServerPlatform::Java,
+                ServerPlatformData::Bedrock => ServerPlatform::Bedrock,
+            },
         }
     }
 }

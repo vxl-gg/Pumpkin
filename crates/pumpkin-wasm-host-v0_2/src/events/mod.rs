@@ -326,6 +326,11 @@ impl pumpkin::plugin::event::HostEvent for PluginHostState {
         set_server_list_ping
     );
     impl_event_getter_setter!(
+        pumpkin_core::plugin::events::server::ServerPlatformReadyEvent,
+        get_server_platform_ready,
+        set_server_platform_ready
+    );
+    impl_event_getter_setter!(
         pumpkin_core::plugin::events::server::ServerLoadEvent,
         get_server_load,
         set_server_load

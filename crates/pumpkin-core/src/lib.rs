@@ -24,6 +24,7 @@ use crate::plugin::loader::PluginLoader;
 use crate::plugin::server::server_command::ServerCommandEvent;
 use crate::server::{Server, ticker::Ticker};
 use plugin::server::server_load::{LoadType, ServerLoadEvent};
+use plugin::server::server_platform_ready::{ServerPlatform, ServerPlatformReadyEvent};
 use pumpkin_config::{AdvancedConfiguration, BasicConfiguration, TelemetryConfig};
 use pumpkin_util::text::TextComponent;
 use pumpkin_util::text::color::{Color, NamedColor};
@@ -546,6 +547,22 @@ impl PumpkinServer {
         self.server.start_telemetry();
         self.server.start_update_checker();
         self.server.management_hub.broadcast_server_started();
+
+        for (listening, platform) in [
+            (self.tcp_listener.is_some(), ServerPlatform::Java),
+            (self.nethernet_listener.is_some(), ServerPlatform::Bedrock),
+        ] {
+            if listening && !SHOULD_STOP.load(Ordering::Relaxed) {
+                let server = self.server.clone();
+                // Readiness handlers may wait for players, so keep accepting connections.
+                tasks.spawn(async move {
+                    server
+                        .plugin_manager
+                        .fire(&server, ServerPlatformReadyEvent::new(platform))
+                        .await;
+                });
+            }
+        }
 
         while !SHOULD_STOP.load(Ordering::Relaxed) {
             if !self

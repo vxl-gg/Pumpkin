@@ -319,6 +319,10 @@ impl CleanupEvent for wit_event::ServerListPingEvent {
     }
 }
 
+impl CleanupEvent for wit_event::ServerPlatformReadyEvent {
+    fn cleanup_event(&self, _state: &mut PluginHostState) {}
+}
+
 impl CleanupEvent for wit_event::ServerLoadEvent {
     fn cleanup_event(&self, _state: &mut PluginHostState) {}
 }

@@ -28,7 +28,7 @@
 
 use std::{fmt, marker::PhantomData, sync::Arc};
 
-pub use crate::host::event::{Event, EventPriority, EventType};
+pub use crate::host::event::{Event, EventPriority, EventType, ServerPlatform};
 use crate::{
     Context, Server,
     registry::{LocalBoxFuture, Registry},

@@ -27,6 +27,7 @@ pub mod datapack;
 pub mod enchantment;
 mod ext;
 pub mod forms;
+pub mod generated;
 pub mod inventory;
 pub mod item;
 mod keys;
@@ -88,20 +89,21 @@ pub use wit::pumpkin::plugin::{
     entity_statuses as entity_statuses_wit,
     entity_types::EntityType,
     event as events_wit, game_events as game_events_wit, gui, i18n, inventory as inventory_wit,
-    ipc, item_stack, java_dialogs, java_packets, particles, permission, player,
+    ipc, item_stack, java_dialogs, java_packets, login_admission, particles, permission, player,
     potions as potions_wit, recipe as recipe_wit, scoreboard, screens as screens_wit, server,
     statistics as statistics_wit, uuid, world,
 };
 
 // Convenience re-exports of commonly-used plugin types so plugin authors can
 // name them directly (e.g. build an `ItemStack` for a GUI or `/give`).
-pub use block::{BlockStateTypeExt, BlockTypeExt, IntoBlockKey};
+pub use block::{BlockStateTypeExt, BlockType, BlockTypeExt, IntoBlockKey};
 pub use damage_types_wit::DamageType;
 pub use datapack::{DatapackInfo, DatapackManager, EnablePosition};
 pub use display::{
     BillboardMode, BlockDisplayEntity, DisplayEntity, DisplayEntityExt, DisplayTransformation,
-    EntityDisplayExt, InteractionEntity, ItemDisplayEntity, ItemDisplayMode, Quaternionf,
-    TextAlignment, TextDisplayEntity, TextDisplayEntityExt, TransformationBuilder, Vector3f,
+    EntityDisplayExt, InteractionEntity, ItemDisplayEntity, ItemDisplayEntityExt, ItemDisplayMode,
+    Quaternionf, TextAlignment, TextDisplayEntity, TextDisplayEntityExt, TransformationBuilder,
+    Vector3f,
 };
 pub use enchantment::{
     AttributeModifierSlot, CustomEnchantment, CustomEnchantmentValue, Enchantment,
@@ -114,7 +116,7 @@ pub use game_events_wit::GameEvent;
 pub use host::game_rules::{GameRule, GameRuleValue};
 pub use host::world::{ChunkBuffer, GenerationPhase};
 pub use inventory::{Inventory, PlayerInventory};
-pub use item::{IntoItemKey, ItemStackExt};
+pub use item::{IntoItemKey, Item, ItemStackExt};
 pub use mobs::{
     Ageable, AgeableData, Cat, CatData, Creeper, CreeperData, DyeColor, Enderman, EndermanData,
     EntityCastExt, Fox, FoxData, IronGolem, IronGolemData, MobCast, MobData, Sheep, SheepData,

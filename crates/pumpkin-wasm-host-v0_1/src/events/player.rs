@@ -261,6 +261,10 @@ impl ToFromWasmEvent for PlayerLeaveEvent {
     fn from_wasm_event(event: Event, state: &mut PluginHostState) -> Self {
         match event {
             Event::PlayerLeaveEvent(data) => Self {
+                transfer_requested: state
+                    .get(&data.player)
+                    .expect("player resource")
+                    .transfer_requested(),
                 player: consume_player(state, &data.player),
                 leave_message: consume_text_component(state, &data.leave_message),
                 cancelled: data.cancelled,

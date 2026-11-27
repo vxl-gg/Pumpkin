@@ -591,6 +591,7 @@ pub struct Player {
     pub gameprofile: GameProfile,
     /// The client connection associated with the player.
     pub client: Arc<ClientPlatform>,
+    transfer_requested: AtomicBool,
     pub(crate) login_admission: LoginAdmission,
     /// The player's inventory.
     pub inventory: Arc<PlayerInventory>,
@@ -1053,6 +1054,7 @@ impl Player {
             chat_spam_tick_count: AtomicU32::new(0),
             // Item usage tracking
             using_item: AtomicBool::new(false),
+            transfer_requested: AtomicBool::new(false),
             login_admission: LoginAdmission::default(),
             item_use_start_time: AtomicI32::new(0),
             using_hand: AtomicCell::new(None),
@@ -5386,6 +5388,11 @@ impl Player {
         }
 
         let PlayerTransferEvent { host, port, .. } = event;
+        if self.client.closed() {
+            return None;
+        }
+        // Mark before queuing: the client may disconnect as soon as it receives the packet.
+        self.transfer_requested.store(true, Ordering::Relaxed);
         self.client
             .try_queue_packet_editioned(
                 &pumpkin_protocol::java::client::play::CTransfer::new(
@@ -5399,6 +5406,11 @@ impl Player {
                 ),
             )
             .then_some((host, port))
+    }
+
+    /// Returns whether this session requested a transfer, not whether it succeeded.
+    pub fn transfer_requested(&self) -> bool {
+        self.transfer_requested.load(Ordering::Relaxed)
     }
 
     pub fn kick(&self, reason: DisconnectReason, message: &TextComponent) {
@@ -10018,10 +10030,19 @@ mod tests {
             None,
         );
 
+        assert!(!player.transfer_requested());
         assert_eq!(player.transfer("cancel.example", 25565), None);
+        assert!(!player.transfer_requested());
         assert_eq!(
             player.transfer("redirect.example", 25565),
             Some(("localhost".into(), 25566))
+        );
+        assert!(
+            crate::plugin::player::PlayerLeaveEvent::new(
+                player.clone(),
+                pumpkin_util::text::TextComponent::text("")
+            )
+            .transfer_requested
         );
         let client = player.client.java().ok_or("No Java client")?;
         client.try_send_packet(&CKeepAlive::new(1));

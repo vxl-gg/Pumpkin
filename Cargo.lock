@@ -3270,7 +3270,7 @@ version = "0.2.2+26.3-26.63"
 dependencies = [
  "ed25519-dalek",
  "hex",
- "pumpkin-plugin-api",
+ "pumpkin-plugin-api-v0_2",
  "reqwest",
  "rustls",
  "serde",

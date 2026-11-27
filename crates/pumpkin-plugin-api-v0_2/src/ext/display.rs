@@ -1,5 +1,6 @@
 #![allow(async_fn_in_trait)]
 
+use crate::host::item_stack::ItemStack;
 use crate::host::{
     display::{
         BlockDisplayEntity, DisplayEntity, InteractionEntity, ItemDisplayEntity, TextDisplayEntity,
@@ -68,6 +69,18 @@ impl DisplayEntityExt for DisplayEntity {
         let mut transform = self.get_transformation();
         transform.scale = Vector3f { x, y, z };
         self.set_transformation(transform);
+    }
+}
+
+/// Extension trait for [`ItemDisplayEntity`] providing convenience methods.
+pub trait ItemDisplayEntityExt {
+    /// Sets the displayed item stack.
+    async fn set_item_stack(&self, item: Option<ItemStack>);
+}
+
+impl ItemDisplayEntityExt for ItemDisplayEntity {
+    async fn set_item_stack(&self, item: Option<ItemStack>) {
+        self.set_item(item).await;
     }
 }
 

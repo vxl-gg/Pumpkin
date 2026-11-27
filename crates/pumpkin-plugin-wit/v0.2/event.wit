@@ -41,6 +41,7 @@ interface event {
     record player-leave-event {
         player: player,
         leave-message: text-component,
+        transfer-requested: bool,
         cancelled: bool
     }
 
@@ -337,6 +338,10 @@ interface event {
         startup,
         reload,
     }
+
+    enum server-platform { java, bedrock }
+
+    record server-platform-ready-event { platform: server-platform }
 
     record server-load-event {
         load-type: server-load-type
@@ -2014,6 +2019,7 @@ interface event {
         server-command,
         server-list-ping,
         server-load,
+        server-platform-ready,
         spawn-change,
         server-broadcast,
         server-tick-start,
@@ -2370,6 +2376,9 @@ interface event {
 
         get-server-list-ping: func() -> result<server-list-ping-event>;
         set-server-list-ping: func(data: server-list-ping-event) -> result;
+
+        get-server-platform-ready: func() -> result<server-platform-ready-event>;
+        set-server-platform-ready: func(data: server-platform-ready-event) -> result;
 
         get-server-load: func() -> result<server-load-event>;
         set-server-load: func(data: server-load-event) -> result;

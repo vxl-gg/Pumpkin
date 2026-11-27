@@ -300,6 +300,7 @@ impl ToFromWasmEvent for PlayerLeaveEvent {
             player,
             leave_message,
             cancelled: self.cancelled,
+            transfer_requested: self.transfer_requested,
         }
     }
 
@@ -308,6 +309,7 @@ impl ToFromWasmEvent for PlayerLeaveEvent {
             player: consume_player(state, &data.player),
             leave_message: consume_text_component(state, &data.leave_message),
             cancelled: data.cancelled,
+            transfer_requested: data.transfer_requested,
         }
     }
 }
