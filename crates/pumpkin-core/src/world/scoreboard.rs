@@ -1360,7 +1360,7 @@ impl BedrockScoreboardBuilder {
 }
 
 #[cfg(test)]
-mod tests {
+mod bedrock_tests {
     use std::error::Error;
 
     use super::*;
